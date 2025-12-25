@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Santa Mystery Vault</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #d32f2f;
+            --secondary: #2e7d32;
+            --accent: #ffb300;
+            --glass: rgba(255, 255, 255, 0.95);
+            --text-dark: #1e293b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(-45deg, #0f172a, #1e293b, #7f1d1d, #14532d);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 1rem;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #snow-container {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .game-container {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+            z-index: 10;
+            border: 2px solid rgba(255,255,255,0.4);
+            transition: transform 0.3s ease, opacity 0.4s ease, visibility 0.4s;
+        }
+
+        /* Logic to hide the card completely */
+        .game-container.hidden-card {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-family: 'Mountains of Christmas', cursive;
+            color: var(--primary);
+            font-size: 2.8rem;
+            margin: 0 0 1rem 0;
+        }
+
+        .progress-container {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary), #4ade80);
+            width: 0%;
+            transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .riddle-box {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 1.5rem;
+            border-left: 6px solid var(--secondary);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .riddle-number {
+            font-size: 0.9rem;
+            color: var(--secondary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        button {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .error-msg { color: var(--primary); font-size: 0.9rem; height: 20px; font-weight: 600; }
+        .hidden { display: none; }
+        .shake { animation: shake 0.4s ease-in-out; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .snowflake {
+            position: absolute;
+            color: white;
+            top: -20px;
+            user-select: none;
+            animation: fall linear forwards;
+        }
+
+        @keyframes fall { to { transform: translateY(105vh) rotate(360deg); } }
+
+        .success-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); /* Slightly darker for better contrast */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .success-modal.active { opacity: 1; pointer-events: all; }
+
+        .success-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.7; /* Increased opacity for the GIF */
+        }
+
+        .success-content {
+            position: relative;
+            background: transparent; /* Removed the white box */
+            padding: 2rem;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            transform: scale(0.7);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .success-modal.active .success-content { transform: scale(1); }
+
+        /* Styling the text to be visible over GIFs */
+        #successTitle, #successMessage {
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.8), -1px -1px 0 #000;
+            color: white !important;
+        }
+
+        .continue-btn {
+            background: var(--secondary);
+            max-width: 300px;
+            margin: 2rem auto 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 1100; /* Higher than modal */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .final-gift {
+            background: #fef3c7;
+            border: 3px dashed var(--accent);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" loop>
+        <source src="xmas.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="music-control muted" id="musicControl" onclick="toggleMusic()">
+        <span class="music-icon">🎵</span>
+        <span id="musicText">Music Off</span>
+    </div>
+
+    <div id="snow-container"></div>
+
+    <div class="success-modal" id="successModal">
+        <div class="success-bg" id="successBg"></div>
+        <div class="success-content">
+            <div id="successIcon" style="font-size: 5rem; margin-bottom: 1rem;">🎉</div>
+            <h2 id="successTitle" style="font-family: 'Mountains of Christmas'; font-size: 3.5rem;">Correct!</h2>
+            <p id="successMessage" style="font-size: 1.4rem; font-weight: 600; line-height: 1.6;"></p>
+            <button class="continue-btn" onclick="closeModal()">Sahi Jawab! Continue →</button>
+        </div>
+    </div>
+
+    <div class="game-container" id="game-card">
+        <h1>🎄 Mystery Vault</h1>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress"></div>
+        </div>
+
+        <div id="step-intro">
+            <p>To unlock your Secret Santa gift, you must solve <strong>10 Bollywood-style riddles</strong>. Ready?</p>
+            <button onclick="startGame()">🎥 Chalo Shuru Karte Hain</button>
+        </div>
+
+        <div id="step-1" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 1</div>
+                <p><strong>What has hands but can't clap?</strong></p>
+            </div>
+            <input type="text" id="ans-1" placeholder="Hint: Ghadi..." onkeypress="handleKey(event, 1)">
+            <p class="error-msg" id="err-1"></p>
+            <button onclick="processAnswer(1)">🔓 Submit</button>
+        </div>
+
+        <div id="step-2" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 2</div>
+                <p><strong>What gets wetter the more it dries?</strong></p>
+            </div>
+            <input type="text" id="ans-2" placeholder="Your answer..." onkeypress="handleKey(event, 2)">
+            <p class="error-msg" id="err-2"></p>
+            <button onclick="processAnswer(2)">🔓 Submit</button>
+        </div>
+
+        <div id="step-3" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 3</div>
+                <p><strong>What can you catch but never throw?</strong></p>
+            </div>
+            <input type="text" id="ans-3" placeholder="Hint: Sardi-Zukaam..." onkeypress="handleKey(event, 3)">
+            <p class="error-msg" id="err-3"></p>
+            <button onclick="processAnswer(3)">🔓 Submit</button>
+        </div>
+
+        <div id="step-4" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 4</div>
+                <p><strong>What has a face and two hands but no arms or legs?</strong></p>
+            </div>
+            <input type="text" id="ans-4" placeholder="Your answer..." onkeypress="handleKey(event, 4)">
+            <p class="error-msg" id="err-4"></p>
+            <button onclick="processAnswer(4)">🔓 Submit</button>
+        </div>
+
+        <div id="step-5" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 5</div>
+                <p><strong>What has a neck but no head?</strong></p>
+            </div>
+            <input type="text" id="ans-5" placeholder="Hint: Thanda-Thanda..." onkeypress="handleKey(event, 5)">
+            <p class="error-msg" id="err-5"></p>
+            <button onclick="processAnswer(5)">🔓 Submit</button>
+        </div>
+
+        <div id="step-6" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 6</div>
+                <p><strong>What goes up but never comes down?</strong></p>
+            </div>
+            <input type="text" id="ans-6" placeholder="Hint: Umar..." onkeypress="handleKey(event, 6)">
+            <p class="error-msg" id="err-6"></p>
+            <button onclick="processAnswer(6)">🔓 Submit</button>
+        </div>
+
+        <div id="step-7" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 7</div>
+                <p><strong>What has keys but can't open locks?</strong></p>
+            </div>
+            <input type="text" id="ans-7" placeholder="Hint: Music..." onkeypress="handleKey(event, 7)">
+            <p class="error-msg" id="err-7"></p>
+            <button onclick="processAnswer(7)">🔓 Submit</button>
+        </div>
+
+        <div id="step-8" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 8</div>
+                <p><strong>What has a thumb and four fingers but is not alive?</strong></p>
+            </div>
+            <input type="text" id="ans-8" placeholder="Your answer..." onkeypress="handleKey(event, 8)">
+            <p class="error-msg" id="err-8"></p>
+            <button onclick="processAnswer(8)">🔓 Submit</button>
+        </div>
+
+        <div id="step-9" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">RIDDLE 9</div>
+                <p><strong>What can travel around the world while staying in a corner?</strong></p>
+            </div>
+            <input type="text" id="ans-9" placeholder="Hint: Post/Chitti..." onkeypress="handleKey(event, 9)">
+            <p class="error-msg" id="err-9"></p>
+            <button onclick="processAnswer(9)">🔓 Submit</button>
+        </div>
+
+        <div id="step-10" class="hidden">
+            <div class="riddle-box">
+                <div class="riddle-number">FINAL RIDDLE</div>
+                <p><strong>What has many teeth but can't bite?</strong></p>
+            </div>
+            <input type="text" id="ans-10" placeholder="Hint: Baal..." onkeypress="handleKey(event, 10)">
+            <p class="error-msg" id="err-10"></p>
+            <button onclick="processAnswer(10)">🎁 Open the Vault!</button>
+        </div>
+
+        <div id="step-final" class="hidden">
+            <h2 style="color: var(--secondary)">🎉 MUBARAK HO! 🎉</h2>
+            <div class="final-gift">
+                <strong>🏆 VAULT OPENED 🏆</strong><br><br>
+                Aap jeet gaye!<br>
+                merry christmas my santa<br><br>
+                <strong>i love you santa mommy</strong>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ANSWERS = { 1: "clock", 2: "towel", 3: "cold", 4: "clock", 5: "bottle", 6: "age", 7: "piano", 8: "glove", 9: "stamp", 10: "comb" };
+
+        const SUCCESS_MESSAGES = {
+            1: { title: "Zabardast!", message: "Time flies with you ", bg: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeWVhYzlydHRoZ25kcncyeG5ob28wZHBwbmJkeGp0OWJ1YzBxbzZwciZlcD12MV9naWZzX3NlYXJjaCZjdD1n/TuzapHXMWdxVS/giphy.gif" },
+            2: { title: "Mauj Kar Di!", message: "Towel-ia ,u r my towel and blanket both to clean me after bath and save from cold too", bg: "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3OXg2dDZ4aW5rczF3bnRrc3hreWJqNnhmM3h2ejlqOWw5dmg1MTg3MiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/n0RiyyqUlthjW/giphy.gif" },
+            3: { title: "Achoo!", message: "you are my only medicine seta cold hok ki ono kono kichu", bg: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExaHl4a3A5ZmVodXpmMjVqbXU3YmhpNjBlejVmYTlpOTB3eWJjanlqZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/7J4WxAd5J9nLLMYKmA/giphy.gif" },
+            4: { title: "Kya Baat Hai!", message: "i want to stop the time when i m with you!", bg: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbjU0Z2d4aDFsdzVvZTEzdXBrNTQ0emh1cW5mNXVibjVpdWo4bml3MyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/viIfNh2wigCUU/giphy.gif" },
+            5: { title: "Thanda Matlab!", message: "tor sathe sudu bottle khulte chai", bg: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeTlybnlpbXh6d3VpZzNsYWlia2JlMmQ0azQzZGFpbHNnemFrYjcxNCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/z7XxAJf5IL4cw/giphy.gif" },
+            6: { title: "Budhape Ka Dar?", message: "ummar ka hikar nehi jab ho tum,i wanna grow old with u", bg: "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3bHJwYmprd2F4bDkxZjF1aGNuamFtYzN1cmhrdnZqMXE2cHFkdXZ1biZlcD12MV9naWZzX3NlYXJjaCZjdD1n/jtSBDZhkGRaDK/giphy.gif" },
+            7: { title: "Sur Taal!", message: "sur teri gala mein teri awaz meri kano mein..seta kotha hok ki khogra", bg: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZHh4OHlndGhvaXpzMG05bHc5cGZyMGQzanQxcGlza3dvcHBnam5leiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/MVxRCm2qgg1EvfKC67/giphy.gif" },
+            8: { title: "Wah Wah!", message: "gloves niye ki hobe ..i dont need any protection", bg: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2RzNW94dHRqN2E3NDlyNmFraXVtYzJibXc1Ync3eTVoMmtscmd2ZSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/J5d1BABk9X0cKxkUee/giphy.gif" },
+            9: { title: "Chitti Aayi Hai!", message: "yes ur r my permanent stamp ,wanan give stamp on your head", bg: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbGJoczk5N2dwa2NqcW52bGQ5NW4zMDUwOTBlYWxqOHJ3c2tmZTNjZCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/l0ErXvb6TamWnqQ1i/giphy.gif" },
+            10: { title: "Shabaash!", message: "kangi se tere balo ko suljao or tum mere jiban ka", bg: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXJycWJtcGhtbXZnd2U4empuN3lkbmtxODJxa2JzMzJzMmQ3ZGoxZyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/XJ9N66YlCgDluHLY4e/giphy.gif" }
+        };
+
+        let currentStep = 0;
+        let musicPlaying = false;
+        const music = document.getElementById('bgMusic');
+
+        function toggleMusic() {
+            const control = document.getElementById('musicControl');
+            if (musicPlaying) {
+                music.pause();
+                control.classList.add('muted');
+                document.getElementById('musicText').innerText = 'Music Off';
+            } else {
+                music.play().catch(e => console.log('Audio error:', e));
+                control.classList.remove('muted');
+                document.getElementById('musicText').innerText = 'Music On';
+            }
+            musicPlaying = !musicPlaying;
+        }
+
+        function startGame() {
+            if (!musicPlaying) toggleMusic();
+            nextStep(1);
+        }
+
+        function nextStep(num) {
+            document.querySelectorAll('[id^="step-"]').forEach(s => s.classList.add('hidden'));
+            const next = document.getElementById(`step-${num}`);
+            if(next) next.classList.remove('hidden');
+            const progressMap = { 'intro': 0, 1: 10, 2: 20, 3: 30, 4: 40, 5: 50, 6: 60, 7: 70, 8: 80, 9: 90, 10: 95, 'final': 100 };
+            document.getElementById('progress').style.width = (progressMap[num] || 0) + '%';
+        }
+
+        function showSuccessModal(step) {
+            const modal = document.getElementById('successModal');
+            const card = document.getElementById('game-card');
+            const config = SUCCESS_MESSAGES[step];
+            
+            // 1. Hide the card completely
+            card.classList.add('hidden-card');
+            
+            // 2. Set up modal content
+            document.getElementById('successBg').style.backgroundImage = `url('${config.bg}')`;
+            document.getElementById('successTitle').innerText = config.title;
+            document.getElementById('successMessage').innerText = config.message;
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('successModal');
+            const card = document.getElementById('game-card');
+            
+            modal.classList.remove('active');
+            
+            // 3. Bring the card back
+            card.classList.remove('hidden-card');
+
+            if (currentStep === 10) nextStep('final');
+            else nextStep(currentStep + 1);
+        }
+
+        function processAnswer(step) {
+            const val = document.getElementById(`ans-${step}`).value.toLowerCase().trim();
+            if (val.includes(ANSWERS[step])) {
+                currentStep = step;
+                showSuccessModal(step);
+            } else {
+                const card = document.getElementById('game-card');
+                document.getElementById(`err-${step}`).innerText = "Galat Jawab! Phir se socho... 🤔";
+                card.classList.remove('shake');
+                void card.offsetWidth;
+                card.classList.add('shake');
+            }
+        }
+
+        function handleKey(e, step) { if (e.key === 'Enter') processAnswer(step); }
+
+        setInterval(() => {
+            const flake = document.createElement('div');
+            flake.className = 'snowflake';
+            flake.innerText = '❄';
+            flake.style.left = Math.random() * 100 + 'vw';
+            flake.style.animationDuration = (Math.random() * 3 + 4) + 's';
+            document.getElementById('snow-container').appendChild(flake);
+            setTimeout(() => flake.remove(), 6000);
+        }, 300);
+    </script>
+</body>
+</html>
